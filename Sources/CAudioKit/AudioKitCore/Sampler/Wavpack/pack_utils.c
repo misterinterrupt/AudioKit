@@ -21,6 +21,22 @@
 
 #include "wavpack_local.h"
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable:4018) // more "signed/unsigned mismatch"
+#pragma warning(disable:4100) // unreferenced formal parameter
+#pragma warning(disable:4101) // unreferenced local variable
+#pragma warning(disable:4245) // 'return': conversion from 'int' to 'size_t', signed/unsigned mismatch
+#pragma warning(disable:4267) // conversion from... possible loss of data
+#pragma warning(disable:4305) // truncation from 'double' to 'float'
+#pragma warning(disable:4309) // truncation of constant value
+#pragma warning(disable:4334) // result of 32-bit shift implicitly converted to 64 bits
+#pragma warning(disable:4389) // signed/unsigned mismatch
+#pragma warning(disable:4456) // Declaration hides previous local declaration
+#pragma warning(disable:4458) // declaration ... hides class member
+#pragma warning(disable:4505) // unreferenced local function has been removed
+#endif
+
 ///////////////////////////// executable code ////////////////////////////////
 
 // Open context for writing WavPack files. The returned context pointer is used
@@ -32,7 +48,7 @@
 
 WavpackContext *WavpackOpenFileOutput (WavpackBlockOutput blockout, void *wv_id, void *wvc_id)
 {
-    WavpackContext *wpc = malloc (sizeof (WavpackContext));
+    WavpackContext *wpc = (WavpackContext *)malloc (sizeof (WavpackContext));
 
     if (!wpc)
         return NULL;
@@ -329,12 +345,12 @@ int WavpackSetConfiguration64 (WavpackContext *wpc, WavpackConfig *config, int64
     // channels will go in each stream.
 
     for (wpc->current_stream = 0; num_chans; wpc->current_stream++) {
-        WavpackStream *wps = malloc (sizeof (WavpackStream));
+        WavpackStream *wps = (WavpackStream *)malloc (sizeof (WavpackStream));
         unsigned char left_chan_id = 0, right_chan_id = 0;
         int pos, chans = 1;
 
         // allocate the stream and initialize the pointer to it
-        wpc->streams = realloc (wpc->streams, (wpc->current_stream + 1) * sizeof (wpc->streams [0]));
+        wpc->streams = (WavpackStream **)realloc (wpc->streams, (wpc->current_stream + 1) * sizeof (wpc->streams [0]));
         wpc->streams [wpc->current_stream] = wps;
         CLEAR (*wps);
 
@@ -461,7 +477,7 @@ int WavpackSetChannelLayout (WavpackContext *wpc, uint32_t layout_tag, const uns
             if (reorder [i] < min_index)
                 min_index = reorder [i];
 
-        wpc->channel_reordering = malloc (nchans);
+        wpc->channel_reordering = (unsigned char*)malloc (nchans);
 
         if (wpc->channel_reordering)
             for (i = 0; i < nchans; ++i)
@@ -532,7 +548,7 @@ int WavpackPackInit (WavpackContext *wpc)
     for (wpc->current_stream = 0; wpc->current_stream < wpc->num_streams; wpc->current_stream++) {
         WavpackStream *wps = wpc->streams [wpc->current_stream];
 
-        wps->sample_buffer = malloc (wpc->max_samples * (wps->wphdr.flags & MONO_FLAG ? 4 : 8));
+        wps->sample_buffer = (int32_t*)malloc (wpc->max_samples * (wps->wphdr.flags & MONO_FLAG ? 4 : 8));
 
 #ifdef ENABLE_DSD
         if (wps->wphdr.flags & DSD_FLAG)
@@ -780,7 +796,7 @@ static int create_riff_header (WavpackContext *wpc, int64_t total_samples, void 
 {
     int do_rf64 = 0, write_junk = 1;
     WpChunkHeader ds64hdr, datahdr, fmthdr;
-    char *outptr = outbuffer;
+    char *outptr = (char*)outbuffer;
     RiffChunkHeader riffhdr;
     DS64Chunk ds64_chunk;
     JunkChunk junkchunk;
@@ -923,9 +939,9 @@ static int pack_streams (WavpackContext *wpc, uint32_t block_samples)
 
     max_blocksize += wpc->metabytes + 1024;     // finally, add metadata & another 1K margin
 
-    out2buff = (wpc->wvc_flag) ? malloc (max_blocksize) : NULL;
+    out2buff = (wpc->wvc_flag) ? (unsigned char*)malloc (max_blocksize) : NULL;
     out2end = out2buff + max_blocksize;
-    outbuff = malloc (max_blocksize);
+    outbuff = (unsigned char*)malloc (max_blocksize);
     outend = outbuff + max_blocksize;
 
     for (wpc->current_stream = 0; wpc->current_stream < wpc->num_streams; wpc->current_stream++) {
@@ -1030,7 +1046,7 @@ void WavpackUpdateNumSamples (WavpackContext *wpc, void *first_block)
             memcpy (WavpackGetWrapperLocation (first_block, NULL), riff_header, wrapper_size);
     }
 
-    block_update_checksum (first_block);
+    block_update_checksum ((unsigned char*)first_block);
     WavpackNativeToLittleEndian (first_block, WavpackHeaderFormat);
 }
 
@@ -1070,7 +1086,7 @@ void *WavpackGetWrapperLocation (void *first_block, uint32_t *size)
 
 static void *find_metadata (void *wavpack_block, int desired_id, uint32_t *size)
 {
-    WavpackHeader *wphdr = wavpack_block;
+    WavpackHeader *wphdr = (WavpackHeader *)wavpack_block;
     unsigned char *dp, meta_id, c1, c2;
     int32_t bcount, meta_bc;
 
@@ -1149,7 +1165,7 @@ int copy_metadata (WavpackMetadata *wpmd, unsigned char *buffer_start, unsigned 
 static int add_to_metadata (WavpackContext *wpc, void *data, uint32_t bcount, unsigned char id)
 {
     WavpackMetadata *mdp;
-    unsigned char *src = data;
+    unsigned char *src = (unsigned char*)data;
 
     while (bcount) {
         if (wpc->metacount) {
@@ -1174,7 +1190,7 @@ static int add_to_metadata (WavpackContext *wpc, void *data, uint32_t bcount, un
         }
 
         if (bcount) {
-            wpc->metadata = realloc (wpc->metadata, (wpc->metacount + 1) * sizeof (WavpackMetadata));
+            wpc->metadata = (WavpackMetadata *)realloc (wpc->metadata, (wpc->metacount + 1) * sizeof (WavpackMetadata));
             mdp = wpc->metadata + wpc->metacount++;
             mdp->byte_length = 0;
             mdp->data = NULL;
@@ -1234,7 +1250,7 @@ static int write_metadata_block (WavpackContext *wpc)
         }
 
         // allocate 6 extra bytes for 4-byte checksum (which we add last)
-        wphdr = (WavpackHeader *) (block_buff = malloc (block_size + 6));
+        wphdr = (WavpackHeader *) (block_buff = (char*)malloc (block_size + 6));
 
         CLEAR (*wphdr);
         memcpy (wphdr->ckID, "wvpk", 4);

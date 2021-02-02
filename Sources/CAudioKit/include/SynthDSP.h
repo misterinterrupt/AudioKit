@@ -2,10 +2,19 @@
 
 #pragma once
 
-#import <AVFoundation/AVFoundation.h>
-#import "Interop.h"
+#if __APPLE__
+#import <AudioToolbox/AudioToolbox.h>
+#else // __APPLE__
+#include "AudioToolbox_NonApplePorting.h"
+#endif // __APPLE__
 
+#include "Interop.h"
+
+#if __APPLE__
 typedef NS_ENUM(AUParameterAddress, SynthParameter)
+#else // __APPLE__
+enum SynthParameter
+#endif // __APPLE__
 {
     // ramped parameters
     
@@ -38,8 +47,12 @@ AK_API void akSynthSustainPedal(DSPRef pDSP, bool pedalDown);
 
 #ifdef __cplusplus
 
-#import "DSPBase.h"
+#include "DSPBase.h"
+#if __APPLE__
+#import "CoreSynth.h"
+#else // __APPLE__
 #include "CoreSynth.h"
+#endif // __APPLE__
 #include "LinearParameterRamp.h"
 
 struct SynthDSP : DSPBase, CoreSynth

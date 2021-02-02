@@ -1,8 +1,10 @@
 // Copyright AudioKit. All Rights Reserved. Revision History at http://github.com/AudioKit/AudioKit/
 
 #include "DSPBase.h"
-#import "TPCircularBuffer.h"
 
+#include "TPCircularBuffer.h"
+
+#ifdef __APPLE__
 typedef void (^CMIDICallback)(uint8_t, uint8_t, uint8_t);
 
 class CallbackInstrumentDSP : public DSPBase {
@@ -95,3 +97,4 @@ AK_API void akCallbackInstrumentSetCallback(DSPRef dsp, CMIDICallback callback) 
 }
 
 AK_REGISTER_DSP(CallbackInstrumentDSP)
+#endif // __APPLE__

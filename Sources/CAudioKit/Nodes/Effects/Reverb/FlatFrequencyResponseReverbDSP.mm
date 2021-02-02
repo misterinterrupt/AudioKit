@@ -12,7 +12,7 @@ class FlatFrequencyResponseReverbDSP : public SoundpipeDSPBase {
 private:
     sp_allpass *allpass0;
     sp_allpass *allpass1;
-    float loopDuration = 0.1;
+    float loopDuration = 0.1f;
     ParameterRamper reverbDurationRamp;
 
 public:

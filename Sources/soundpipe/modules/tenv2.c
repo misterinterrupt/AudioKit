@@ -1,6 +1,11 @@
 #include <stdlib.h>
 #include "soundpipe.h"
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable:4702) // unreachable code
+#endif
+
 enum {
     T_ON,
     T_OFF,
@@ -9,7 +14,7 @@ enum {
 
 int sp_tenv2_create(sp_tenv2 **p)
 {
-    *p = malloc(sizeof(sp_tenv2));
+    *p = (sp_tenv2*)malloc(sizeof(sp_tenv2));
     return SP_OK;
 }
 

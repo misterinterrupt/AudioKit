@@ -1,6 +1,6 @@
 // Copyright AudioKit. All Rights Reserved. Revision History at http://github.com/AudioKit/AudioKit/
 
-#import "SoundpipeDSPBase.h"
+#include "SoundpipeDSPBase.h"
 
 #include "soundpipe.h"
 #include "vocwrapper.h"

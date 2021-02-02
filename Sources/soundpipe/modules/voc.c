@@ -5,6 +5,12 @@
 #include <string.h>
 #include "soundpipe.h"
 
+
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable:4702) // unreachable code
+#endif
+
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
@@ -599,7 +605,7 @@ static void tract_compute(sp_data *sp, tract *tr,
 
 int sp_voc_create(sp_voc **voc)
 {
-    *voc = malloc(sizeof(sp_voc));
+    *voc = (sp_voc*)malloc(sizeof(sp_voc));
     return SP_OK;
 }
 

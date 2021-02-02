@@ -133,7 +133,6 @@ public:
             float detuneOffset = detuningOffsetRamp.getAndStep();
             osc->freq = frequency * detuneMultiplier + detuneOffset;
             osc->amp = amplitudeRamp.getAndStep();
-
             if(isStarted) {
                 crossfade += 0.005;
                 if(crossfade > 1) { crossfade = 1; }
