@@ -18,6 +18,22 @@
 
 #include "wavpack_local.h"
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable:4018) // more "signed/unsigned mismatch"
+#pragma warning(disable:4100) // unreferenced formal parameter
+#pragma warning(disable:4101) // unreferenced local variable
+#pragma warning(disable:4245) // 'return': conversion from 'int' to 'size_t', signed/unsigned mismatch
+#pragma warning(disable:4267) // conversion from... possible loss of data
+#pragma warning(disable:4305) // truncation from 'double' to 'float'
+#pragma warning(disable:4309) // truncation of constant value
+#pragma warning(disable:4334) // result of 32-bit shift implicitly converted to 64 bits
+#pragma warning(disable:4389) // signed/unsigned mismatch
+#pragma warning(disable:4456) // Declaration hides previous local declaration
+#pragma warning(disable:4458) // declaration ... hides class member
+#pragma warning(disable:4505) // unreferenced local function has been removed
+#endif
+
 ///////////////////////////// executable code ////////////////////////////////
 
 static int64_t find_sample (WavpackContext *wpc, void *infile, int64_t header_pos, int64_t sample);
@@ -85,7 +101,7 @@ int WavpackSeekSample64 (WavpackContext *wpc, int64_t sample)
         wpc->reader->set_pos_abs (wpc->wv_in, wpc->filepos);
         wpc->reader->read_bytes (wpc->wv_in, &wps->wphdr, sizeof (WavpackHeader));
         WavpackLittleEndianToNative (&wps->wphdr, WavpackHeaderFormat);
-        wps->blockbuff = malloc (wps->wphdr.ckSize + 8);
+        wps->blockbuff = (unsigned char *)malloc (wps->wphdr.ckSize + 8);
         memcpy (wps->blockbuff, &wps->wphdr, sizeof (WavpackHeader));
 
         if (wpc->reader->read_bytes (wpc->wv_in, wps->blockbuff + sizeof (WavpackHeader), wps->wphdr.ckSize - 24) !=
@@ -109,7 +125,7 @@ int WavpackSeekSample64 (WavpackContext *wpc, int64_t sample)
             wpc->reader->set_pos_abs (wpc->wvc_in, wpc->file2pos);
             wpc->reader->read_bytes (wpc->wvc_in, &wps->wphdr, sizeof (WavpackHeader));
             WavpackLittleEndianToNative (&wps->wphdr, WavpackHeaderFormat);
-            wps->block2buff = malloc (wps->wphdr.ckSize + 8);
+            wps->block2buff = (unsigned char*)malloc (wps->wphdr.ckSize + 8);
             memcpy (wps->block2buff, &wps->wphdr, sizeof (WavpackHeader));
 
             if (wpc->reader->read_bytes (wpc->wvc_in, wps->block2buff + sizeof (WavpackHeader), wps->wphdr.ckSize - 24) !=
@@ -145,8 +161,8 @@ int WavpackSeekSample64 (WavpackContext *wpc, int64_t sample)
                 return FALSE;
             }
 
-            wpc->streams = realloc (wpc->streams, (wpc->num_streams + 1) * sizeof (wpc->streams [0]));
-            wps = wpc->streams [wpc->num_streams++] = malloc (sizeof (WavpackStream));
+            wpc->streams = (WavpackStream **)realloc (wpc->streams, (wpc->num_streams + 1) * sizeof (wpc->streams [0]));
+            wps = wpc->streams [wpc->num_streams++] = (WavpackStream *)malloc (sizeof (WavpackStream));
             CLEAR (*wps);
             bcount = read_next_header (wpc->reader, wpc->wv_in, &wps->wphdr);
 
@@ -155,7 +171,7 @@ int WavpackSeekSample64 (WavpackContext *wpc, int64_t sample)
                 return FALSE;
             }
 
-            wps->blockbuff = malloc (wps->wphdr.ckSize + 8);
+            wps->blockbuff = (unsigned char *)malloc (wps->wphdr.ckSize + 8);
             memcpy (wps->blockbuff, &wps->wphdr, 32);
 
             if (wpc->reader->read_bytes (wpc->wv_in, wps->blockbuff + 32, wps->wphdr.ckSize - 24) !=
@@ -205,7 +221,7 @@ int WavpackSeekSample64 (WavpackContext *wpc, int64_t sample)
     }
 
     if (samples_to_skip) {
-        buffer = malloc (samples_to_skip * 8);
+        buffer = (int32_t *)malloc (samples_to_skip * 8);
 
         for (wpc->current_stream = 0; wpc->current_stream < wpc->num_streams; wpc->current_stream++)
 #ifdef ENABLE_DSD
@@ -248,7 +264,7 @@ int WavpackSeekSample64 (WavpackContext *wpc, int64_t sample)
 
 static int64_t find_header (WavpackStreamReader64 *reader, void *id, int64_t filepos, WavpackHeader *wphdr)
 {
-    unsigned char *buffer = malloc (BUFSIZE), *sp = buffer, *ep = buffer;
+    unsigned char *buffer = (unsigned char*)malloc (BUFSIZE), *sp = buffer, *ep = buffer;
 
     if (filepos != (uint32_t) -1 && reader->set_pos_abs (id, filepos)) {
         free (buffer);

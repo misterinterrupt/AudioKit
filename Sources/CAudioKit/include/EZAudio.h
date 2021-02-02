@@ -30,8 +30,13 @@ FOUNDATION_EXPORT const unsigned char EZAudioVersionString[];
 #pragma mark - Utility Components
 //------------------------------------------------------------------------------
 
+#if __APPLE__
 #import "EZAudioFFT.h"
-#import "EZAudioUtilities.h"
+#else // __APPLE__
+#include "EZAudioFFT.h"
+#endif // __APPLE__
+
+#include "EZAudioUtilities.h"
 
 //------------------------------------------------------------------------------
 

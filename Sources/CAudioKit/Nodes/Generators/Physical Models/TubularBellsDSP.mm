@@ -1,11 +1,12 @@
 // Copyright AudioKit. All Rights Reserved. Revision History at http://github.com/AudioKit/AudioKit/
 
-#import "STKInstrumentDSP.hpp"
+#include "STKInstrumentDSP.hpp"
 
 #include "TubeBell.h"
 #include "sinewave_raw.h"
 #include "fwavblnk_raw.h"
 
+#ifdef __APPLE__
 class TubularBellsDSP : public STKInstrumentDSP {
 private:
     stk::TubeBell *tubularBells = nullptr;
@@ -51,3 +52,4 @@ public:
 };
 
 AK_REGISTER_DSP(TubularBellsDSP);
+#endif // __APPLE__

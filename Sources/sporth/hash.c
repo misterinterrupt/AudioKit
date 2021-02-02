@@ -5,6 +5,21 @@
 
 #include "sporth.h"
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable:4018) // more "signed/unsigned mismatch"
+#pragma warning(disable:4100) // unreferenced formal parameter
+#pragma warning(disable:4101) // unreferenced local variable
+#pragma warning(disable:4245) // 'return': conversion from 'int' to 'size_t', signed/unsigned mismatch
+#pragma warning(disable:4267) // conversion from... possible loss of data
+#pragma warning(disable:4305) // truncation from 'double' to 'float'
+#pragma warning(disable:4309) // truncation of constant value
+#pragma warning(disable:4334) // result of 32-bit shift implicitly converted to 64 bits
+#pragma warning(disable:4456) // Declaration hides previous local declaration
+#pragma warning(disable:4458) // declaration ... hides class member
+#pragma warning(disable:4505) // unreferenced local function has been removed
+#endif
+
 uint32_t sporth_hash(const char *str)
 {
     uint32_t h = 5381;
@@ -42,12 +57,12 @@ int sporth_htable_add(sporth_htable *ht, const char *key, uint32_t val)
     sporth_list *list = &ht->list[pos];
     list->count++;
     sporth_entry *old = list->last;
-    sporth_entry *new = malloc(sizeof(sporth_entry));
-    new->val = val;
-    new->key = malloc(sizeof(char) * (strlen(key) + 1));
-    strcpy(new->key, key);
-    old->next = new;
-    list->last = new;
+    sporth_entry *pNew = (sporth_entry*)malloc(sizeof(sporth_entry));
+    pNew->val = val;
+    pNew->key = (char *)malloc(sizeof(char) * (strlen(key) + 1));
+    strcpy(pNew->key, key);
+    old->next = pNew;
+    list->last = pNew;
 
     return SPORTH_OK;
 }

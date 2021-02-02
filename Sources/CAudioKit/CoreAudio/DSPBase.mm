@@ -1,14 +1,17 @@
 // Copyright AudioKit. All Rights Reserved. Revision History at http://github.com/AudioKit/AudioKit/
 
-#import "DSPBase.h"
-#import "ParameterRamper.h"
-#import <map>
-#import <string>
+#include "DSPBase.h"
+#include "ParameterRamper.h"
 
+#include <map>
+#include <string>
+
+#ifdef __APPLE__
 AUInternalRenderBlock internalRenderBlockDSP(DSPRef pDSP)
 {
     return pDSP->internalRenderBlock();
 }
+#endif // __APPLE__
 
 size_t inputBusCountDSP(DSPRef pDSP)
 {
@@ -32,7 +35,11 @@ void setBufferDSP(DSPRef pDSP, AVAudioPCMBuffer* buffer, size_t busIndex)
 
 void allocateRenderResourcesDSP(DSPRef pDSP, AVAudioFormat* format)
 {
+#ifdef __APPLE__
     pDSP->init(format.channelCount, format.sampleRate);
+#else // __APPLE__
+    pDSP->init(format->channelCount, format->sampleRate);
+#endif // __APPLE__
 }
 
 void deallocateRenderResourcesDSP(DSPRef pDSP)
@@ -99,6 +106,7 @@ void DSPBase::setBuffer(const AVAudioPCMBuffer* buffer, size_t busIndex)
     internalBuffers[busIndex] = buffer;
 }
 
+#ifdef __APPLE__
 AUInternalRenderBlock DSPBase::internalRenderBlock()
 {
     return ^AUAudioUnitStatus(
@@ -146,6 +154,7 @@ AUInternalRenderBlock DSPBase::internalRenderBlock()
         return noErr;
     };
 }
+#endif // __APPLE__
 
 void DSPBase::setParameter(AUParameterAddress address, float value, bool immediate)
 {

@@ -10,10 +10,14 @@
 
 // N.B. This is C++.
 
+#if __APPLE__
 #import <AudioToolbox/AudioToolbox.h>
 #import <libkern/OSAtomic.h>
+#else // __APPLE__
+#include "AudioToolbox_NonApplePorting.h"
+#endif // __APPLE__
 
-#import <atomic>
+#include <atomic>
 
 class ParameterRamper {
     float clampLow, clampHigh;

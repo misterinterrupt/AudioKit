@@ -1,9 +1,14 @@
 #include <stdlib.h>
 #include "soundpipe.h"
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable:4129) // 'e': unrecognized character escape sequence
+#endif
+
 int sp_progress_create(sp_progress **p)
 {
-    *p = malloc(sizeof(sp_progress));
+    *p = (sp_progress*)malloc(sizeof(sp_progress));
     return SP_OK;
 }
 

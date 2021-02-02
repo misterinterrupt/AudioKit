@@ -2,16 +2,37 @@
 
 #pragma once
 
-#import "Interop.h"
+#include "Interop.h"
+#if __APPLE__
 #import <AudioToolbox/AudioToolbox.h>
 #import <AVFoundation/AVFoundation.h>
+#else // __APPLE__
+#include "AudioToolbox_NonApplePorting.h"
+#endif // __APPLE__
+
+#ifdef _MSC_VER
+#include <memory> // For unique_ptr
+#include <BaseTsd.h>
+typedef SSIZE_T ssize_t;
+#pragma warning(push)
+#pragma warning(disable:4018) // more "signed/unsigned mismatch"
+#pragma warning(disable:4100) // unreferenced formal parameter
+#pragma warning(disable:4101) // unreferenced local variable
+#pragma warning(disable:4245) // 'return': conversion from 'int' to 'size_t', signed/unsigned mismatch
+#pragma warning(disable:4305) // truncation from 'double' to 'float'
+#pragma warning(disable:4456) // Declaration hides previous local declaration
+#pragma warning(disable:4458) // declaration ... hides class member
+#pragma warning(disable:4505) // unreferenced local function has been removed
+#endif
 
 #include <stdarg.h>
 
 AK_API DSPRef akCreateDSP(const char* name);
 AK_API AUParameterAddress akGetParameterAddress(const char* name);
 
+#ifdef __APPLE__
 AK_API AUInternalRenderBlock internalRenderBlockDSP(DSPRef pDSP);
+#endif // __APPLE__
 
 AK_API size_t inputBusCountDSP(DSPRef pDSP);
 AK_API size_t outputBusCountDSP(DSPRef pDSP);
@@ -42,8 +63,10 @@ AK_API void akSetSeed(unsigned int);
 
 #ifdef __cplusplus
 
+#ifdef __APPLE__
 #import <Foundation/Foundation.h>
-#import <vector>
+#endif // __APPLE__
+#include <vector>
 
 /**
  Base class for DSPKernels. Many of the methods are virtual, because the base AudioUnit class
@@ -81,9 +104,11 @@ public:
     
     std::vector<AudioBufferList*> inputBufferLists;
     AudioBufferList* outputBufferList = nullptr;
-    
+
+#ifdef __APPLE__
     AUInternalRenderBlock internalRenderBlock();
-    
+#endif // __APPLE__
+
     inline bool canProcessInPlace() const { return bCanProcessInPlace; }
     
     void setBuffer(const AVAudioPCMBuffer* buffer, size_t busIndex);

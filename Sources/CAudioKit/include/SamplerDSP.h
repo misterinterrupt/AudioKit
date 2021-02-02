@@ -2,10 +2,19 @@
 
 #pragma once
 
-#import <AVFoundation/AVFoundation.h>
-#import "Interop.h"
+#if __APPLE__
+#import <AudioToolbox/AudioToolbox.h>
+#else // __APPLE__
+#include "AudioToolbox_NonApplePorting.h"
+#endif // __APPLE__
 
+#include "Interop.h"
+
+#if __APPLE__
 typedef NS_ENUM(AUParameterAddress, SamplerParameter)
+#else // __APPLE__
+enum SamplerParameter
+#endif // __APPLE__
 {
     // ramped parameters
     SamplerParameterMasterVolume,
@@ -65,8 +74,12 @@ AK_API void akSamplerSustainPedal(DSPRef pDSP, bool pedalDown);
 
 #ifdef __cplusplus
 
-#import "DSPBase.h"
+#include "DSPBase.h"
+#if __APPLE__
+#import "CoreSampler.h"
+#else // __APPLE__
 #include "CoreSampler.h"
+#endif // __APPLE__
 #include "LinearParameterRamp.h"
 
 struct SamplerDSP : DSPBase, CoreSampler

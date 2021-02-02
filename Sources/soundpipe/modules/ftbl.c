@@ -24,9 +24,9 @@ int sp_ftbl_init(sp_data *sp, sp_ftbl *ft, size_t size)
 
 int sp_ftbl_create(sp_data *sp, sp_ftbl **ft, size_t size)
 {
-    *ft = malloc(sizeof(sp_ftbl));
+    *ft = (sp_ftbl*)malloc(sizeof(sp_ftbl));
     sp_ftbl *ftp = *ft;
-    ftp->tbl = malloc(sizeof(SPFLOAT) * (size + 1));
+    ftp->tbl = (float*)malloc(sizeof(SPFLOAT) * (size + 1));
     memset(ftp->tbl, 0, sizeof(SPFLOAT) * (size + 1));
 
     sp_ftbl_init(sp, ftp, size);
@@ -35,7 +35,7 @@ int sp_ftbl_create(sp_data *sp, sp_ftbl **ft, size_t size)
 
 int sp_ftbl_bind(sp_data *sp, sp_ftbl **ft, SPFLOAT *tbl, size_t size)
 {
-    *ft = malloc(sizeof(sp_ftbl));
+    *ft = (sp_ftbl*)malloc(sizeof(sp_ftbl));
     sp_ftbl *ftp = *ft;
     ftp->tbl = tbl;
     sp_ftbl_init(sp, ftp, size);
@@ -74,7 +74,7 @@ static char * tokenize(char **next, int *size)
 int sp_gen_vals(sp_data *sp, sp_ftbl *ft, const char *string)
 {
     int size = (int)strlen(string);
-    char *str = malloc(sizeof(char) * size + 1);
+    char *str = (char*)malloc(sizeof(char) * size + 1);
     strcpy(str, string);
     char *out;
     char *ptr = str;
@@ -82,7 +82,7 @@ int sp_gen_vals(sp_data *sp, sp_ftbl *ft, const char *string)
     while(size > 0) {
         out = tokenize(&str, &size);
         if(ft->size < j + 1){
-            ft->tbl = realloc(ft->tbl, sizeof(SPFLOAT) * (ft->size + 2));
+            ft->tbl = (float*)realloc(ft->tbl, sizeof(SPFLOAT) * (ft->size + 2));
             /* zero out new tables */
             ft->tbl[ft->size] = 0;
             ft->tbl[ft->size + 1] = 0;
@@ -106,6 +106,53 @@ int sp_gen_sine(sp_data *sp, sp_ftbl *ft)
     }
     return SP_OK;
 }
+
+#ifndef NO_LIBSNDFILE
+#define NO_LIBSNDFILE // porting
+#endif // NO_LIBSNDFILE
+
+#ifndef NO_LIBSNDFILE
+int sp_gen_file(sp_data *sp, sp_ftbl *ft, const char *filename)
+{
+    SF_INFO info;
+    memset(&info, 0, sizeof(SF_INFO));
+    info.format = 0;
+    SNDFILE *snd = sf_open(filename, SFM_READ, &info);
+#ifdef USE_DOUBLE
+    sf_readf_double(snd, ft->tbl, ft->size);
+#else
+    sf_readf_float(snd, ft->tbl, ft->size);
+#endif
+    sf_close(snd);
+    return SP_OK;
+}
+
+int sp_ftbl_loadfile(sp_data *sp, sp_ftbl **ft, const char *filename)
+{
+    *ft = (sp_ftbl*)malloc(sizeof(sp_ftbl));
+    sp_ftbl *ftp = *ft;
+    SF_INFO info;
+    memset(&info, 0, sizeof(SF_INFO));
+    info.format = 0;
+    SNDFILE *snd = sf_open(filename, SFM_READ, &info);
+    if(snd == NULL) {
+        return SP_NOT_OK;
+    }
+    size_t size = info.frames * info.channels;
+
+    ftp->tbl = (float*)malloc(sizeof(SPFLOAT) * (size + 1));
+
+    sp_ftbl_init(sp, ftp, size);
+
+#ifdef USE_DOUBLE
+    sf_readf_double(snd, ftp->tbl, ftp->size);
+#else
+    sf_readf_float(snd, ftp->tbl, ftp->size);
+#endif
+    sf_close(snd);
+    return SP_OK;
+}
+#endif
 
 /* port of GEN10 from Csound */
 int sp_gen_sinesum(sp_data *sp, sp_ftbl *ft, const char *argstring)

@@ -18,6 +18,23 @@
 
 #include "wavpack_local.h"
 
+
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable:4018) // more "signed/unsigned mismatch"
+#pragma warning(disable:4100) // unreferenced formal parameter
+#pragma warning(disable:4101) // unreferenced local variable
+#pragma warning(disable:4245) // 'return': conversion from 'int' to 'size_t', signed/unsigned mismatch
+#pragma warning(disable:4267) // conversion from... possible loss of data
+#pragma warning(disable:4305) // truncation from 'double' to 'float'
+#pragma warning(disable:4309) // truncation of constant value
+#pragma warning(disable:4334) // result of 32-bit shift implicitly converted to 64 bits
+#pragma warning(disable:4389) // signed/unsigned mismatch
+#pragma warning(disable:4456) // Declaration hides previous local declaration
+#pragma warning(disable:4458) // declaration ... hides class member
+#pragma warning(disable:4505) // unreferenced local function has been removed
+#endif
+
 ///////////////////////////// executable code ////////////////////////////////
 
 // Unpack the specified number of samples from the current file position.
@@ -71,7 +88,7 @@ uint32_t WavpackUnpackSamples (WavpackContext *wpc, int32_t *buffer, uint32_t sa
 
                 // allocate the memory for the entire raw block and read it in
 
-                wps->blockbuff = malloc (wps->wphdr.ckSize + 8);
+                wps->blockbuff = (unsigned char *)malloc (wps->wphdr.ckSize + 8);
 
                 if (!wps->blockbuff)
                     break;
@@ -178,7 +195,7 @@ uint32_t WavpackUnpackSamples (WavpackContext *wpc, int32_t *buffer, uint32_t sa
         // to stereo), then enter this conditional block...otherwise we just unpack the samples directly
 
         if (!wpc->reduced_channels && !(wps->wphdr.flags & FINAL_BLOCK)) {
-            int32_t *temp_buffer = malloc (samples_to_unpack * 8), *src, *dst;
+            int32_t *temp_buffer = (int32_t *)malloc (samples_to_unpack * 8), *src, *dst;
             int offset = 0;     // offset to next channel in sequence (0 to num_channels - 1)
             uint32_t samcnt;
 
@@ -195,12 +212,12 @@ uint32_t WavpackUnpackSamples (WavpackContext *wpc, int32_t *buffer, uint32_t sa
                 // if the stream has not been allocated and corresponding block read, do that here...
 
                 if (wpc->current_stream == wpc->num_streams) {
-                    wpc->streams = realloc (wpc->streams, (wpc->num_streams + 1) * sizeof (wpc->streams [0]));
+                    wpc->streams = (WavpackStream **)realloc (wpc->streams, (wpc->num_streams + 1) * sizeof (wpc->streams [0]));
 
                     if (!wpc->streams)
 			break;
 
-                    wps = wpc->streams [wpc->num_streams++] = malloc (sizeof (WavpackStream));
+                    wps = wpc->streams [wpc->num_streams++] = (WavpackStream *)malloc (sizeof (WavpackStream));
 
                     if (!wps)
 			break;
@@ -215,7 +232,7 @@ uint32_t WavpackUnpackSamples (WavpackContext *wpc, int32_t *buffer, uint32_t sa
                         break;
                     }
 
-                    wps->blockbuff = malloc (wps->wphdr.ckSize + 8);
+                    wps->blockbuff = (unsigned char*)malloc (wps->wphdr.ckSize + 8);
 
                     if (!wps->blockbuff)
 		        break;

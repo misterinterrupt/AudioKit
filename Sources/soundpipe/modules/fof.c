@@ -15,6 +15,11 @@
 #include <math.h>
 #include "soundpipe.h"
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable:4706) // assignment within conditional expression
+#endif
+
 #define PFRAC1(x)   ((SPFLOAT)((x) & ftp1->lomask) * ftp1->lodiv)
 
 #ifndef M_PI
@@ -98,7 +103,7 @@ static int newpulse(sp_data *sp,
 
 int sp_fof_create(sp_fof **p)
 {
-    *p = malloc(sizeof(sp_fof));
+    *p = (sp_fof*)malloc(sizeof(sp_fof));
     return SP_OK;
 }
 

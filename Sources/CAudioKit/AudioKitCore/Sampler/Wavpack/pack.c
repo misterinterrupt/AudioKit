@@ -21,6 +21,21 @@
 #include "wavpack_local.h"
 #include "decorr_tables.h"      // contains data, only include from this module!
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable:4018) // more "signed/unsigned mismatch"
+#pragma warning(disable:4100) // unreferenced formal parameter
+#pragma warning(disable:4101) // unreferenced local variable
+#pragma warning(disable:4245) // 'return': conversion from 'int' to 'size_t', signed/unsigned mismatch
+#pragma warning(disable:4267) // conversion from... possible loss of data
+#pragma warning(disable:4305) // truncation from 'double' to 'float'
+#pragma warning(disable:4309) // truncation of constant value
+#pragma warning(disable:4334) // result of 32-bit shift implicitly converted to 64 bits
+#pragma warning(disable:4456) // Declaration hides previous local declaration
+#pragma warning(disable:4458) // declaration ... hides class member
+#pragma warning(disable:4505) // unreferenced local function has been removed
+#endif
+
 ///////////////////////////// executable code ////////////////////////////////
 
 // This function initializes everything required to pack WavPack bitstreams
@@ -65,7 +80,7 @@ void pack_init (WavpackContext *wpc)
     }
 
     if (wpc->config.flags & CONFIG_DYNAMIC_SHAPING)
-        wps->dc.shaping_data = malloc (wpc->max_samples * sizeof (*wps->dc.shaping_data));
+        wps->dc.shaping_data = (int16_t*)malloc (wpc->max_samples * sizeof (*wps->dc.shaping_data));
 
     if (!wpc->config.xmode)
         wps->num_passes = 0;
@@ -106,7 +121,8 @@ static void write_decorr_terms (WavpackStream *wps, WavpackMetadata *wpmd)
     struct decorr_pass *dpp;
     char *byteptr;
 
-    byteptr = wpmd->data = malloc (tcount + 1);
+    wpmd->data = malloc (tcount + 1);
+    byteptr = (char*)wpmd->data;
     wpmd->id = ID_DECORR_TERMS;
 
     for (dpp = wps->decorr_passes; tcount--; ++dpp)
@@ -126,7 +142,8 @@ static void write_decorr_weights (WavpackStream *wps, WavpackMetadata *wpmd)
     int tcount = wps->num_terms, i;
     char *byteptr;
 
-    byteptr = wpmd->data = malloc ((tcount * 2) + 1);
+    wpmd->data = malloc ((tcount * 2) + 1);
+    byteptr = (char*)wpmd->data;
     wpmd->id = ID_DECORR_WEIGHTS;
 
     for (i = wps->num_terms - 1; i >= 0; --i)
@@ -167,7 +184,8 @@ static void write_decorr_samples (WavpackStream *wps, WavpackMetadata *wpmd)
     struct decorr_pass *dpp;
     unsigned char *byteptr;
 
-    byteptr = wpmd->data = malloc (256);
+    wpmd->data = malloc (256);
+    byteptr = (unsigned char*)wpmd->data;
     wpmd->id = ID_DECORR_SAMPLES;
 
     for (dpp = wps->decorr_passes; tcount--; ++dpp)
@@ -236,7 +254,8 @@ static void write_shaping_info (WavpackStream *wps, WavpackMetadata *wpmd)
     char *byteptr;
     int temp;
 
-    byteptr = wpmd->data = malloc (12);
+    wpmd->data = malloc (12);
+    byteptr = (char*)wpmd->data;
     wpmd->id = ID_SHAPING_WEIGHTS;
 
     wps->dc.error [0] = wp_exp2s (temp = wp_log2s (wps->dc.error [0]));
@@ -279,7 +298,8 @@ static void write_int32_info (WavpackStream *wps, WavpackMetadata *wpmd)
 {
     char *byteptr;
 
-    byteptr = wpmd->data = malloc (4);
+    wpmd->data = malloc (4);
+    byteptr = (char*)wpmd->data;
     wpmd->id = ID_INT32_INFO;
     *byteptr++ = wps->int32_sent_bits;
     *byteptr++ = wps->int32_zeros;
@@ -292,7 +312,8 @@ static void write_float_info (WavpackStream *wps, WavpackMetadata *wpmd)
 {
     char *byteptr;
 
-    byteptr = wpmd->data = malloc (4);
+    wpmd->data = malloc (4);
+    byteptr = (char*)wpmd->data;
     wpmd->id = ID_FLOAT_INFO;
     *byteptr++ = wps->float_flags;
     *byteptr++ = wps->float_shift;
@@ -309,7 +330,8 @@ static void write_float_info (WavpackStream *wps, WavpackMetadata *wpmd)
 static void write_channel_info (WavpackContext *wpc, WavpackMetadata *wpmd)
 {
     uint32_t mask = wpc->config.channel_mask;
-    char *byteptr = wpmd->data = malloc (8);
+    wpmd->data = malloc (8);
+    char* byteptr = (char*)wpmd->data;
 
     wpmd->id = ID_CHANNEL_INFO;
 
@@ -359,7 +381,8 @@ static void write_config_info (WavpackContext *wpc, WavpackMetadata *wpmd)
 {
     char *byteptr;
 
-    byteptr = wpmd->data = malloc (8);
+    wpmd->data = malloc (8);
+    byteptr = (char*)wpmd->data;
     wpmd->id = ID_CONFIG_BLOCK;
     *byteptr++ = (char) (wpc->config.flags >> 8);
     *byteptr++ = (char) (wpc->config.flags >> 16);
@@ -383,7 +406,8 @@ static void write_config_info (WavpackContext *wpc, WavpackMetadata *wpmd)
 
 static void write_new_config_info (WavpackContext *wpc, WavpackMetadata *wpmd)
 {
-    char *byteptr = wpmd->data = malloc (260);
+    wpmd->data = malloc (260);
+    char *byteptr = (char*)wpmd->data;
 
     wpmd->id = ID_NEW_CONFIG_BLOCK;
 
@@ -429,7 +453,9 @@ static void write_sample_rate (WavpackContext *wpc, WavpackMetadata *wpmd)
 {
     char *byteptr;
 
-    byteptr = wpmd->data = malloc (4);
+    wpmd->data = malloc (4);
+    byteptr = (char*)wpmd->data;
+
     wpmd->id = ID_SAMPLE_RATE;
     *byteptr++ = (char) (wpc->config.sample_rate);
     *byteptr++ = (char) (wpc->config.sample_rate >> 8);
@@ -569,7 +595,7 @@ int pack_block (WavpackContext *wpc, int32_t *buffer)
         // if lossless we have to copy the data to use later...
 
         if ((!(flags & HYBRID_FLAG) || wpc->wvc_flag) && !(wpc->config.flags & CONFIG_SKIP_WVX)) {
-            orig_data = malloc (sizeof (f32) * ((flags & MONO_DATA) ? sample_count : sample_count * 2));
+            orig_data = (int32_t*)malloc (sizeof (f32) * ((flags & MONO_DATA) ? sample_count : sample_count * 2));
             memcpy (orig_data, buffer, sizeof (f32) * ((flags & MONO_DATA) ? sample_count : sample_count * 2));
 
             if (flags & FLOAT_DATA) {                                       // if lossless float data come here
@@ -1058,7 +1084,7 @@ static int pack_samples (WavpackContext *wpc, int32_t *buffer)
     saved_stream = *wps;
 
     if (repack_possible && !(flags & HYBRID_FLAG)) {
-        saved_buffer = malloc (sample_count * sizeof (int32_t) * (flags & MONO_DATA ? 1 : 2));
+        saved_buffer = (int32_t*)malloc (sample_count * sizeof (int32_t) * (flags & MONO_DATA ? 1 : 2));
         memcpy (saved_buffer, buffer, sample_count * sizeof (int32_t) * (flags & MONO_DATA ? 1 : 2));
     }
 
@@ -1684,8 +1710,8 @@ static void bs_write (Bitstream *bs);
 static void bs_open_write (Bitstream *bs, void *buffer_start, void *buffer_end)
 {
     bs->error = bs->sr = bs->bc = 0;
-    bs->ptr = bs->buf = buffer_start;
-    bs->end = buffer_end;
+    bs->ptr = bs->buf = (uint16_t*)buffer_start;
+    bs->end = (uint16_t*)buffer_end;
     bs->wrap = bs_write;
 }
 

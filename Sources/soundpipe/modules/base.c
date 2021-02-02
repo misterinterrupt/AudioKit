@@ -10,7 +10,7 @@ int sp_create(sp_data **spp)
     sp_data *sp = *spp;
     sprintf(sp->filename, "test.wav");
     sp->nchan = 1;
-    SPFLOAT *out = malloc(sizeof(SPFLOAT) * sp->nchan);
+    SPFLOAT *out = (SPFLOAT*)malloc(sizeof(SPFLOAT) * sp->nchan);
     *out = 0;
     sp->out = out;
     sp->sr = 44100;
@@ -26,7 +26,7 @@ int sp_createn(sp_data **spp, int nchan)
     sp_data *sp = *spp;
     sprintf(sp->filename, "test.wav");
     sp->nchan = nchan;
-    SPFLOAT *out = malloc(sizeof(SPFLOAT) * sp->nchan);
+    SPFLOAT *out = (SPFLOAT*)malloc(sizeof(SPFLOAT) * sp->nchan);
     *out = 0;
     sp->out = out;
     sp->sr = 44100;
@@ -43,6 +43,62 @@ int sp_destroy(sp_data **spp)
     free(*spp);
     return 0;
 }
+
+#ifndef NO_LIBSNDFILE
+#define NO_LIBSNDFILE // MPC
+#endif // NO_LIBSNDFILE
+
+#ifndef NO_LIBSNDFILE
+
+int sp_process(sp_data *sp, void *ud, void (*callback)(sp_data *, void *))
+{
+    SNDFILE *sf[sp->nchan];
+    char tmp[140];
+    SF_INFO info;
+    memset(&info, 0, sizeof(SF_INFO));
+    SPFLOAT buf[sp->nchan][SP_BUFSIZE];
+    info.samplerate = sp->sr;
+    info.channels = 1;
+    info.format = SF_FORMAT_WAV | SF_FORMAT_PCM_24;
+    int numsamps, i, chan;
+    if(sp->nchan == 1) {
+        sf[0] = sf_open(sp->filename, SFM_WRITE, &info);
+    } else {
+        for(chan = 0; chan < sp->nchan; chan++) {
+            sprintf(tmp, "%02d_%s", chan, sp->filename);
+            sf[chan] = sf_open(tmp, SFM_WRITE, &info);
+        }
+    }
+
+    while(sp->len > 0){
+        if(sp->len < SP_BUFSIZE) {
+            numsamps = sp->len;
+        }else{
+            numsamps = SP_BUFSIZE;
+        }
+        for(i = 0; i < numsamps; i++){
+            callback(sp, ud);
+            for(chan = 0; chan < sp->nchan; chan++) {
+                buf[chan][i] = sp->out[chan];
+            }
+            sp->pos++;
+        }
+        for(chan = 0; chan < sp->nchan; chan++) {
+#ifdef USE_DOUBLE
+            sf_write_double(sf[chan], buf[chan], numsamps);
+#else
+            sf_write_float(sf[chan], buf[chan], numsamps);
+#endif
+        }
+        sp->len -= numsamps;
+    }
+    for(i = 0; i < sp->nchan; i++) {
+        sf_close(sf[i]);
+    }
+    return 0;
+}
+
+#endif
 
 int sp_process_raw(sp_data *sp, void *ud, void (*callback)(sp_data *, void *))
 {
