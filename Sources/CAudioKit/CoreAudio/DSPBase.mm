@@ -28,18 +28,14 @@ bool canProcessInPlaceDSP(DSPRef pDSP)
     return pDSP->canProcessInPlace();
 }
 
-void setBufferDSP(DSPRef pDSP, AVAudioPCMBuffer* buffer, size_t busIndex)
+void setBufferDSP(DSPRef pDSP, AudioBufferList* buffer, size_t busIndex)
 {
     pDSP->setBuffer(buffer, busIndex);
 }
 
-void allocateRenderResourcesDSP(DSPRef pDSP, AVAudioFormat* format)
+void allocateRenderResourcesDSP(DSPRef pDSP, uint32_t channelCount, double sampleRate)
 {
-#ifdef __APPLE__
-    pDSP->init(format.channelCount, format.sampleRate);
-#else // __APPLE__
-    pDSP->init(format->channelCount, format->sampleRate);
-#endif // __APPLE__
+    pDSP->init(channelCount, sampleRate);
 }
 
 void deallocateRenderResourcesDSP(DSPRef pDSP)
@@ -100,10 +96,12 @@ DSPBase::DSPBase(int inputBusCount)
     std::fill(parameters, parameters+maxParameters, nullptr);
 }
 
-void DSPBase::setBuffer(const AVAudioPCMBuffer* buffer, size_t busIndex)
+void DSPBase::setBuffer(AudioBufferList* buffer, size_t busIndex)
 {
-    if (internalBuffers.size() <= busIndex) internalBuffers.resize(busIndex + 1);
-    internalBuffers[busIndex] = buffer;
+    if (internalBufferLists.size() <= busIndex) {
+        internalBufferLists.resize(busIndex + 1);
+    }
+    internalBufferLists[busIndex] = buffer;
 }
 
 #ifdef __APPLE__
@@ -131,14 +129,14 @@ AUInternalRenderBlock DSPBase::internalRenderBlock()
             else {
                 // pull input to internal buffer
                 for (size_t i = 0; i < inputBufferLists.size(); i++) {
-                    inputBufferLists[i] = internalBuffers[i].mutableAudioBufferList;
+                    inputBufferLists[i] = internalBufferLists[i];
                     
                     UInt32 byteSize = frameCount * sizeof(float);
-                    inputBufferLists[i]->mNumberBuffers = internalBuffers[i].audioBufferList->mNumberBuffers;
+                    inputBufferLists[i]->mNumberBuffers = internalBufferLists[i]->mNumberBuffers;
                     for (UInt32 ch = 0; ch < inputBufferLists[i]->mNumberBuffers; ch++) {
                         inputBufferLists[i]->mBuffers[ch].mDataByteSize = byteSize;
-                        inputBufferLists[i]->mBuffers[ch].mNumberChannels = internalBuffers[i].audioBufferList->mBuffers[ch].mNumberChannels;
-                        inputBufferLists[i]->mBuffers[ch].mData = internalBuffers[i].audioBufferList->mBuffers[ch].mData;
+                        inputBufferLists[i]->mBuffers[ch].mNumberChannels = internalBufferLists[i]->mBuffers[ch].mNumberChannels;
+                        inputBufferLists[i]->mBuffers[ch].mData = internalBufferLists[i]->mBuffers[ch].mData;
                     }
                     
                     AudioUnitRenderActionFlags inputFlags = 0;

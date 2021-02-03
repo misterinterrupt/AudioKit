@@ -5,7 +5,6 @@
 #include "Interop.h"
 #if __APPLE__
 #import <AudioToolbox/AudioToolbox.h>
-#import <AVFoundation/AVFoundation.h>
 #else // __APPLE__
 #include "AudioToolbox_NonApplePorting.h"
 #endif // __APPLE__
@@ -38,8 +37,8 @@ AK_API size_t inputBusCountDSP(DSPRef pDSP);
 AK_API size_t outputBusCountDSP(DSPRef pDSP);
 AK_API bool canProcessInPlaceDSP(DSPRef pDSP);
 
-AK_API void setBufferDSP(DSPRef pDSP, AVAudioPCMBuffer* buffer, size_t busIndex);
-AK_API void allocateRenderResourcesDSP(DSPRef pDSP, AVAudioFormat* format);
+AK_API void setBufferDSP(DSPRef pDSP, AudioBufferList* buffer, size_t busIndex);
+AK_API void allocateRenderResourcesDSP(DSPRef pDSP, uint32_t channelCount, double sampleRate);
 AK_API void deallocateRenderResourcesDSP(DSPRef pDSP);
 AK_API void resetDSP(DSPRef pDSP);
 
@@ -63,19 +62,18 @@ AK_API void akSetSeed(unsigned int);
 
 #ifdef __cplusplus
 
-#ifdef __APPLE__
-#import <Foundation/Foundation.h>
-#endif // __APPLE__
-#include <vector>
+#import <vector>
 
 /**
  Base class for DSPKernels. Many of the methods are virtual, because the base AudioUnit class
  does not know the type of the subclass at compile time.
  */
 
-class DSPBase {
-    
-    std::vector<const AVAudioPCMBuffer*> internalBuffers;
+struct DSPBase {
+
+private:
+
+    std::vector<AudioBufferList*> internalBufferLists;
     
 protected:
 
@@ -111,7 +109,7 @@ public:
 
     inline bool canProcessInPlace() const { return bCanProcessInPlace; }
     
-    void setBuffer(const AVAudioPCMBuffer* buffer, size_t busIndex);
+    void setBuffer(AudioBufferList* buffer, size_t busIndex);
     
     /// The Render function.
     virtual void process(AUAudioFrameCount frameCount, AUAudioFrameCount bufferOffset) = 0;
