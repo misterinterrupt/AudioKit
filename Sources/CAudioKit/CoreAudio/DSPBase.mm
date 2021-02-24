@@ -187,6 +187,7 @@ void DSPBase::processWithEvents(AudioTimeStamp const *timestamp, AUAudioFrameCou
                                   AURenderEvent const *events)
 {
     now = timestamp->mSampleTime;
+//    printf("DSP time sample: %llu %i - - - - - - - - - - - - - - - - - process ref: %p\n", now, frameCount, this);
 
     // Chceck for parameter updates from the UI.
     for(int index = 0; index < maxParameters; ++index) {

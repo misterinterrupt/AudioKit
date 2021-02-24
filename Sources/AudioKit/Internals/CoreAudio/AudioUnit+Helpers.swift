@@ -18,7 +18,7 @@ public extension AudioUnit {
     /// Set value for a property
     func setValue<T>(value: T, forProperty property: AudioUnitPropertyID) throws {
         let (dataSize, _) = try getPropertyInfo(propertyID: property)
-        return try setProperty(propertyID: property, dataSize: dataSize, data: value)
+        return try setProperty(propertyID: property, dataSize: dataSize, sequenceData: value)
     }
 
     /// Add a listener to a property
@@ -86,21 +86,21 @@ public extension AudioUnit {
     /// Get property
     func getProperty<T>(propertyID: AudioUnitPropertyID, dataSize: UInt32) throws -> T {
         var dataSize = dataSize
-        let data = UnsafeMutablePointer<T>.allocate(capacity: Int(dataSize))
+        let sequenceData = UnsafeMutablePointer<T>.allocate(capacity: Int(dataSize))
         defer {
-            data.deallocate()
+            sequenceData.deallocate()
         }
 
-        try AudioUnitGetProperty(self, propertyID, kAudioUnitScope_Global, 0, data, &dataSize).check()
+        try AudioUnitGetProperty(self, propertyID, kAudioUnitScope_Global, 0, sequenceData, &dataSize).check()
 
-        return data.pointee
+        return sequenceData.pointee
     }
 
     /// Set a property
-    func setProperty<T>(propertyID: AudioUnitPropertyID, dataSize: UInt32, data: T) throws {
-        var data = data
+    func setProperty<T>(propertyID: AudioUnitPropertyID, dataSize: UInt32, sequenceData: T) throws {
+        var sequenceData = sequenceData
 
-        try AudioFileSetProperty(self, propertyID, dataSize, &data).check()
+        try AudioFileSetProperty(self, propertyID, dataSize, &sequenceData).check()
     }
 
     /// Add property listener

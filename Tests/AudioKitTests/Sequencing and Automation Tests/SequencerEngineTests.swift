@@ -8,7 +8,8 @@ import AVFoundation
 class SequencerEngineTests: XCTestCase {
 
     func observerTest(sequence: NoteEventSequence,
-                      frameCount: AUAudioFrameCount = 44100,
+                      sampleRate: Double = 44100,
+                      bufferSize: AUAudioFrameCount = 44100,
                       renderCallCount: Int = 1) -> [MIDIEvent] {
 
         let engine = akSequencerEngineCreate()
@@ -35,7 +36,7 @@ class SequencerEngineTests: XCTestCase {
                                                          eventsPtr.baseAddress,
                                                          orderedEvents.count,
                                                          settings,
-                                                         44100,
+                                                         sampleRate,
                                                          block)!
 
             var timeStamp = AudioTimeStamp()
@@ -44,14 +45,14 @@ class SequencerEngineTests: XCTestCase {
             akSequencerEngineSetPlaying(engine, true)
 
             for index in 0..<renderCallCount {
-                timeStamp.mSampleTime = Double(Int(frameCount) * index)
-                observer(.unitRenderAction_PreRender, &timeStamp, frameCount, 0 /* outputBusNumber*/)
+                timeStamp.mSampleTime = Double(Int(bufferSize) * index)
+                observer(.unitRenderAction_PreRender, &timeStamp, bufferSize, 0 /* outputBusNumber*/)
             }
         }
 
         // One second at 120bpm is two beats
         XCTAssertEqual(akSequencerEngineGetPosition(engine),
-                       fmod(2.0 * Double(Int(frameCount) * renderCallCount) / 44100, 4),
+                       fmod(2.0 * Double(Int(bufferSize) * renderCallCount) / sampleRate, 4),
                        accuracy: 0.0001)
 
         akSequencerEngineDestroy(engine)
@@ -103,7 +104,7 @@ class SequencerEngineTests: XCTestCase {
         seq.add(noteNumber: 60, position: 0.0, duration: 0.1)
         seq.add(noteNumber: 63, position: 1.0, duration: 0.1)
 
-        let events = observerTest(sequence: seq, frameCount: 256, renderCallCount: Int(44100 * 10 / 256))
+        let events = observerTest(sequence: seq, bufferSize: 256, renderCallCount: Int(44100 * 10 / 256))
         XCTAssertEqual(events.count, 20)
 
         XCTAssertEqual(events.map { $0.noteNumber! },
@@ -171,7 +172,7 @@ class SequencerEngineTests: XCTestCase {
         seq.add(noteNumber: 62, position: 1.0, duration: 1.0)
         seq.add(noteNumber: 64, position: 1.0, duration: 1.0)
 
-        let events = observerTest(sequence: seq, frameCount:512, renderCallCount: 44_100 * 4 / 512)
+        let events = observerTest(sequence: seq, bufferSize: 512, renderCallCount: 44_100 * 4 / 512)
         XCTAssertEqual(events.count, 24)
 
         XCTAssertEqual(events.map { $0.noteNumber! }, [60, 62, 64, 60, 62, 64,

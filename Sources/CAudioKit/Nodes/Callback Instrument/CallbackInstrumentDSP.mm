@@ -45,7 +45,7 @@ public:
             count += 1;
             if (updateTime) {
                 int diff = count - lastFrameCount;
-                printf("debug: time is %i diff is %i\n", count, diff);
+//                printf("debug: time is %i diff is %i\n", count, diff);
                 lastFrameCount = count;
                 updateTime = false;
             }
