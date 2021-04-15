@@ -21,11 +21,10 @@ typedef struct {
 
 /// Sequence Settings
 typedef struct {
-    int maximumPlayCount;
     double length;
     double tempo;
     bool loopEnabled;
-    uint numberOfLoops;
+    int32_t numberOfLoops;
 } SequenceSettings;
 
 typedef struct SequencerEngine* SequencerEngineRef;
@@ -47,10 +46,19 @@ AK_API AURenderObserver SequencerEngineUpdateSequence(SequencerEngineRef engine,
 /// Returns the sequencer playhead position in beats.
 AK_API double akSequencerEngineGetPosition(SequencerEngineRef engine);
 
+/// Returns the current loop.
+AK_API int akSequencerEngineGetCurrentLoop(SequencerEngineRef engine);
+
 /// Move the playhead to a location in beats.
 AK_API void akSequencerEngineSeekTo(SequencerEngineRef engine, double position);
 
-AK_API void akSequencerEngineSetPlaying(SequencerEngineRef engine, bool playing);
+AK_API void akSequencerEnginePlayFromStart(SequencerEngineRef engine);
+
+AK_API void akSequencerEnginePlay(SequencerEngineRef engine);
+
+AK_API void akSequencerEnginePanic(SequencerEngineRef engine);
+
+AK_API void akSequencerEngineStop(SequencerEngineRef engine);
 
 AK_API bool akSequencerEngineIsPlaying(SequencerEngineRef engine);
 

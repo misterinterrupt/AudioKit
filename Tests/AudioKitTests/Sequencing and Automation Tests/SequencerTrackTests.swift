@@ -33,11 +33,11 @@ class SequencerTrackTests: XCTestCase {
 
         track.sequence = getTestSequence()
         track.playFromStart()
-        XCTAssertTrue(track.isPlaying)
 
         let audio = engine.startTest(totalDuration: 5.0)
         audio.append(engine.render(duration: 5.0))
         testMD5(audio)
+        XCTAssertTrue(track.isPlaying)
     }
 
     func testOneShot() {
@@ -51,10 +51,10 @@ class SequencerTrackTests: XCTestCase {
         track.sequence = getTestSequence()
         track.loopEnabled = false
         track.playFromStart()
-        XCTAssertTrue(track.isPlaying)
         let audio = engine.startTest(totalDuration: 5.0)
         audio.append(engine.render(duration: 5.0))
         testMD5(audio)
+        XCTAssertTrue(track.isPlaying)
     }
 
     func testTempo() {
@@ -68,10 +68,10 @@ class SequencerTrackTests: XCTestCase {
         track.sequence = getTestSequence()
         track.tempo = 60
         track.playFromStart()
-        XCTAssertTrue(track.isPlaying)
         let audio = engine.startTest(totalDuration: 5.0)
         audio.append(engine.render(duration: 5.0))
         testMD5(audio)
+        XCTAssertTrue(track.isPlaying)
     }
 
 }

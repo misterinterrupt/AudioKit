@@ -26,7 +26,8 @@ open class SequencerTrack {
     }
 
     /// Maximum number of times to play, ie. loop the track
-    public var maximumPlayCount: Double = 1 {
+    /// 0 means loop indefinitely
+    public var numberOfLoops: Int = 0 {
         didSet {
             updateSequence()
         }
@@ -49,6 +50,11 @@ open class SequencerTrack {
         akSequencerEngineGetPosition(engine)
     }
 
+    /// Current position of the track
+    public var currentLoop: Int {
+        Int(akSequencerEngineGetCurrentLoop(engine))
+    }
+
     private var engine: SequencerEngineRef
 
     // MARK: - Initialization
@@ -65,31 +71,28 @@ open class SequencerTrack {
                 auAudioUnit.removeRenderObserver(token)
             }
         }
-
         akSequencerEngineDestroy(engine)
     }
 
     /// Start the track
     public func play() {
-        akSequencerEngineSetPlaying(engine, true)
+        akSequencerEnginePlay(engine)
     }
 
     /// Start the track from the beginning
     public func playFromStart() {
-        seek(to: 0)
-        akSequencerEngineSetPlaying(engine, true)
+        akSequencerEnginePlayFromStart(engine)
     }
 
     /// Start the track after a certain delay in beats
     public func playAfterDelay(beats: Double) {
         seek(to: -1 * beats)
-        akSequencerEngineSetPlaying(engine, true)
+        akSequencerEnginePlay(engine)
     }
 
     /// Stop playback
     public func stop() {
-        akSequencerEngineSetPlaying(engine, false)
-        akSequencerEngineStopPlayingNotes(engine)
+        akSequencerEngineStop(engine)
     }
 
     /// Set the current position to the start ofthe track
@@ -114,9 +117,16 @@ open class SequencerTrack {
         sequence = NoteEventSequence()
     }
 
-    /// Stop playing all the notes current in the "now playing" array.
+    // NOTE: This does not stop the sequencer
+    // this is just exposed. Use track.stop()
+    /// Stop playing all the notes currently playing
     public func stopPlayingNotes() {
         akSequencerEngineStopPlayingNotes(engine)
+    }
+
+    /// Stop sequencer and send Note-Off messages for every note
+    public func panic() {
+        akSequencerEnginePanic(engine)
     }
 
     private var renderObserverToken: Int?
@@ -127,13 +137,13 @@ open class SequencerTrack {
             return
         }
 
-        let settings = SequenceSettings(maximumPlayCount: Int32(maximumPlayCount),
-                                          length: length,
+        let settings = SequenceSettings(length: length,
                                           tempo: tempo,
                                           loopEnabled: loopEnabled,
-                                          numberOfLoops: 0)
+                                          numberOfLoops: Int32(numberOfLoops))
 
         let orderedEvents = sequence.beatTimeOrderedEvents()
+
         orderedEvents.withUnsafeBufferPointer { (eventsPtr: UnsafeBufferPointer<SequenceEvent>) -> Void in
             guard let observer = SequencerEngineUpdateSequence(engine,
                                                                  eventsPtr.baseAddress,
