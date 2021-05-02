@@ -51,7 +51,6 @@ private:
     double secondsPerBeat           = 0.0;
     long   samplesPerBeat           = 0;
     long   sequenceLengthInSamples  = 0;
-    double lengthInBeats            = 0.0;
     // useful constants calculated at start of process() call
     long   lastFrameCount           = 0;
     double secondsPerBuffer         = 0.0;
@@ -71,13 +70,13 @@ private:
             runningStatus.set(data1, 0);
 //            coutPosition();
             std::cout << "note: " << (int)(data1)  << " status is Off " << std::endl;
-            std::cout << runningStatus.to_string() << std::endl;
+            std::cout << runningStatus.to_string() << std::endl << std::endl;
         }
         if(status == NOTEON) {
 //            coutPosition();
             runningStatus.set(data1, 1);
             std::cout << "note: " << (int)(data1)  << " status is On " << std::endl;
-            std::cout << runningStatus.to_string() << std::endl;
+            std::cout << runningStatus.to_string() << std::endl << std::endl;
         }
     }
 
@@ -187,7 +186,6 @@ private:
         secondsPerBeat          = 60.0 / settings.tempo;
         samplesPerBeat          = secondsPerBeat * sampleRate;
         sequenceLengthInSamples = beatToSamples(settings.length);
-        lengthInBeats           = samplesToBeats(sequenceLengthInSamples);
         if(lastFrameCount > 0) {
             secondsPerBuffer    = (double)(lastFrameCount) / sampleRate;
             beatsPerBuffer      = samplesToBeats(lastFrameCount);
@@ -208,8 +206,10 @@ private:
     }
 
     // return a multiple of the buffer size in beat time
+    // modulo loop length if loopEnabled
     double quantizedBeatPosition() {
-        double beat = (currentPositionInSamples() / lastFrameCount) * beatsPerBuffer;
+        long position = settings.loopEnabled ? currentPositionInSamples() : playbackSampleCount;
+        double beat = (position / lastFrameCount) * beatsPerBuffer;
 //        std::cout << "beat: " << beat << " total buffers: " << currentPositionInSamples() / lastFrameCount << std::endl;
         return beat;
     }
@@ -269,7 +269,7 @@ public:
         return ++sequenceToken;
     }
 
-    double position() {
+    double quantizedPosition() {
         return uiPosition;
     }
 
@@ -281,78 +281,139 @@ public:
 
         lastFrameCount = frameCount;
 
-        // TODO: reset loopCount appropriately
-
         processEvents(resetToken);
 
         if (isStarted) {
+            // sample and beat times are 0-indexed - loops are 1-indexed
+            long currentStartSample =               playbackSampleCount;
+            long currentEndSample =                 currentStartSample + frameCount;
 
-            // samples and beat time are 0-indexed
-            // loops are 1-indexed
+            // check if buffer includes the loop boundary
+            bool bufferIncludesNextLoop =           settings.loopEnabled && (currentEndSample > sequenceLengthInSamples);
+            bool bufferPastEnd =                    !settings.loopEnabled && (currentEndSample > sequenceLengthInSamples);
+            bool bufferGTELoop =                    settings.loopEnabled && (frameCount >= sequenceLengthInSamples);
 
-            long currentStartSample = currentPositionInSamples();
-            long currentEndSample = currentStartSample + frameCount;
+            // calculate window in current buffer that includes the next loop
+            long nextLoopStartSample =              currentStartSample + fmax(0, sequenceLengthInSamples - currentStartSample);
+            long nextLoopEndSample =                currentEndSample;
+
+            if(bufferIncludesNextLoop || bufferPastEnd) {
+                // set end of current buffer to end of current loop
+                currentEndSample =                  nextLoopStartSample;
+            }
 
             // handle finite looping state
-            bool currBufferIncludesNextLoop = currentEndSample > sequenceLengthInSamples;
-            bool isFiniteLoop = settings.numberOfLoops > 0;
-            auto lengthOfFiniteLoops = sequenceLengthInSamples * settings.numberOfLoops;
-            bool inFinalLoop = settings.loopEnabled ? currentLoop >= settings.numberOfLoops : false;
-            bool isFinalBufferInFiniteLoop = settings.loopEnabled && isFiniteLoop && inFinalLoop && currBufferIncludesNextLoop;
+            bool isFiniteLoop = settings.loopEnabled && (settings.numberOfLoops > 0);
+                long lengthOfFiniteLoops =          isFiniteLoop ? (sequenceLengthInSamples * settings.numberOfLoops) : 0;
+                bool inFinalLoop =                  isFiniteLoop && (currentLoop >= settings.numberOfLoops);
+                bool isFinalBufferOfFiniteLoops =   isFiniteLoop && bufferIncludesNextLoop && inFinalLoop;
 
-            // schedule events for this buffer
+            // schedule events for the current loop in this buffer
             for (int i = 0; i < events.size(); i++) {
+
                 long triggerTime = beatToSamples(events[i].beat);
-                // if needed, schedule messages for the next loop first
-                // skip next loop if this is the last buffer of the last loop
-                if (settings.loopEnabled && currBufferIncludesNextLoop) {
-                    long nextLoopStartSample = (sequenceLengthInSamples - currentStartSample);
-                    long nextLoopSamplesLength = frameCount - nextLoopStartSample;
-                    if (triggerTime < nextLoopSamplesLength) {
-                        std::cout << "buffer ends on beat: " << samplesToBeats(currentEndSample) << " next loop at: " << nextLoopStartSample << std::endl;
-                        std::cout << "sequence len samples: " << sequenceLengthInSamples << " samples of next loop: " << nextLoopSamplesLength << std::endl;
-                        std::cout << "note status: " << ((events[i].status == NOTEON) ? "On" : "Off") << std::endl;
-                        // only process note off messages if isFinalBufferInFiniteLoop == true
-                        if(isFinalBufferInFiniteLoop && events[i].status == NOTEON) {
-                            continue;
-                        }
-                        // this event would trigger early enough in the next loop
-                        // that it should happen in this buffer
-                        // ie. this buffer contains events from the previous loop, and the next loop
-                        long offset = triggerTime + nextLoopStartSample;
-                        sendMidiData(events[i].status, events[i].data1, events[i].data2,
-                                     (int)(offset), events[i].beat);
-                        std::cout << "<> currentStartSample: " << currentStartSample << " triggerTime: " << triggerTime << std::endl;
-                        std::cout << "currentEndSample: " << currentEndSample << " frameCount: " << frameCount << std::endl;
-                        std::cout << "playbackSampleCount: " << playbackSampleCount << " offset: " << triggerTime << std::endl;
-                        std::cout << "buff # " << (playbackSampleCount / frameCount) + 1 << " loop # " << currentLoop << std::endl << std::endl;
-                    }
-                } else if (currentStartSample <= triggerTime && triggerTime <= currentEndSample) {
-                    // this event is supposed to trigger between currentStartSample and (non-inclusive)currentEndSample
+
+                bool eventInCurrLoop = currentStartSample <= triggerTime && triggerTime < currentEndSample;
+                bool eventAtLoopBoundary = (bufferIncludesNextLoop || bufferPastEnd) && (triggerTime == currentEndSample);
+                bool noteOnLoopBoundary = eventAtLoopBoundary && events[i].status == NOTEON;
+
+                // schedule note events
+                if (eventInCurrLoop || eventAtLoopBoundary) {
+
                     long offset = (triggerTime - currentStartSample);
-                    sendMidiData(events[i].status, events[i].data1, events[i].data2,
-                                 (int)(offset), events[i].beat);
-                    std::cout << "currentStartSample: " << currentStartSample << " triggerTime: " << triggerTime << std::endl;
-                    std::cout << "currentEndSample: " << currentEndSample << " frameCount: " << frameCount << std::endl;
-                    std::cout << "playbackSampleCount: " << playbackSampleCount << " offset: " << triggerTime << std::endl;
-                    std::cout << "buff # " << (playbackSampleCount / frameCount) + 1 << " loop # " << currentLoop << std::endl << std::endl;
+
+                    std::cout << "current loop <> " << (eventAtLoopBoundary ? (noteOnLoopBoundary ? " on at loop boundary" : " off at loop boundary") : "") << std::endl;
+                    std::cout << "event offset:         " << offset << std::endl;
+                    std::cout << "playbackSampleCount:  " << playbackSampleCount << std::endl;
+                    std::cout << "currentStartSample:   " << currentStartSample << " triggerTime: " << triggerTime << std::endl;
+                    std::cout << "song position:        " << samplesToBeats(playbackSampleCount) << " event pos: " << events[i].beat << std::endl;
+                    std::cout << "currentEndSample:     " << currentEndSample << " frameCount: " << frameCount << std::endl;
+                    std::cout << "loop                  # " << currentLoop << std::endl;
+                    std::cout << "buffer                # " << (playbackSampleCount / frameCount) + 1  << std::endl;
+                    std::cout << "buffer GTE loop       " << (bufferGTELoop ? "true" : "false") << std::endl;
+                    std::cout << "buffer start          " << samplesToBeats(currentStartSample) << " " << currentStartSample << std::endl;
+                    std::cout << "buffer end:           " << samplesToBeats(currentEndSample) << " " << currentEndSample << std::endl;
+                    std::cout << "next loop start:      " << samplesToBeats(nextLoopStartSample) << " " << nextLoopStartSample << std::endl;
+                    std::cout << "next loop end:        " << samplesToBeats(nextLoopEndSample) << " " << nextLoopEndSample << std::endl;
+                    std::cout << "current loop samples: " << currentEndSample - currentStartSample << std::endl;
+                    std::cout << "next loop samples:    " << nextLoopEndSample - nextLoopStartSample << std::endl;
+                    std::cout << "sequence len samples: " << sequenceLengthInSamples << std::endl << std::endl;
+
+                    // process note off msgs loop's boundary
+                    if(noteOnLoopBoundary) {
+                    std::cout << "xxxxxxxxxxxxxxxxxxxxx skipping event:  note " << (int)(events[i].data1) << (events[i].status == NOTEON ? " On" : " Off") << std::endl << std::endl;
+                        continue;
+                    }
+                    sendMidiData(events[i].status, events[i].data1, events[i].data2, (int)(offset), events[i].beat);
                 }
             }
 
+            // schedule events for the next loop in this buffer
+            if(bufferIncludesNextLoop && !isFinalBufferOfFiniteLoops && !bufferGTELoop) {
+
+                for (int i = 0; i < events.size(); i++) {
+
+                    long nextLoopWindowLength = nextLoopEndSample - nextLoopStartSample;
+                    // save the offset in this buffer
+                    long loopOffset = nextLoopStartSample - currentStartSample;
+
+                    long triggerTime = beatToSamples(events[i].beat);
+
+                    // next loop window starts at the begining of the loop to end of buffer
+                    bool eventInNextLoop = 0 <= triggerTime && triggerTime < nextLoopWindowLength;
+
+                    if(eventInNextLoop) {
+
+                        long offset = loopOffset + triggerTime;
+
+                        std::cout << std::endl << "next loop <> " << std::endl;
+                        std::cout << "event offset:         " << offset << std::endl;
+                        std::cout << "playbackSampleCount:  " << playbackSampleCount << std::endl;
+                        std::cout << "currentStartSample:   " << currentStartSample << " triggerTime: " << triggerTime << std::endl;
+                        std::cout << "song position:        " << samplesToBeats(playbackSampleCount) << " event pos: " << events[i].beat << std::endl;
+                        std::cout << "currentEndSample:     " << currentEndSample << " frameCount: " << frameCount << std::endl;
+                        std::cout << "loop                  # " << currentLoop << std::endl;
+                        std::cout << "buffer                # " << (playbackSampleCount / frameCount) + 1  << std::endl;
+                        std::cout << "buffer GTE loop       " << (bufferGTELoop ? "true" : "false") << std::endl;
+                        std::cout << "buffer start          " << samplesToBeats(currentStartSample) << " " << currentStartSample << std::endl;
+                        std::cout << "buffer end:           " << samplesToBeats(currentEndSample) << " " << currentEndSample << std::endl;
+                        std::cout << "next loop start:      " << samplesToBeats(nextLoopStartSample) << " " << nextLoopStartSample << std::endl;
+                        std::cout << "next loop end:        " << samplesToBeats(nextLoopEndSample) << " " << nextLoopEndSample << std::endl;
+                        std::cout << "current loop samples: " << currentEndSample - currentStartSample << std::endl;
+                        std::cout << "next loop samples:    " << nextLoopEndSample - nextLoopStartSample << std::endl;
+                        std::cout << "sequence len samples: " << sequenceLengthInSamples << std::endl << std::endl;
+
+                        sendMidiData(events[i].status, events[i].data1, events[i].data2, (int)(offset), events[i].beat);
+                    }
+                }
+            }
+
+            // count the samples processed
             playbackSampleCount += frameCount;
 
-
-            uiPosition = quantizedBeatPosition();
-
-            if(isFinalBufferInFiniteLoop) {
-                std::cout << "isFinalBufferInFiniteLoop: " << std::endl;
-                // TODO:: add and expose config for this behavior..
+            if(settings.loopEnabled) {
+                // stop when finite looping is done
+                if(isFinalBufferOfFiniteLoops) {
+                    // TODO:: add and expose config for this behavior..
+                    // TODO: reset loopCount where appropriate
+                    std::cout << "finite loop is finished - loop: " << currentLoop << " of " << settings.numberOfLoops << std::endl;
+                    stop();
+                    stopAllPlayingNotes();
+                } else {
+                    // increment loop only if isFinalBufferOfFiniteLoops == false
+                    if(playbackSampleCount >= sequenceLengthInSamples) {
+                        incrementLoop();
+                    }
+                }
+                // clamp the samples counted to the sequence length
+                playbackSampleCount = playbackSampleCount % sequenceLengthInSamples;
+            } else if(playbackSampleCount >= sequenceLengthInSamples) {
+                std::cout << "sequence is finished - playback sample count: " << playbackSampleCount << " of " << sequenceLengthInSamples << std::endl;
                 stop();
                 stopAllPlayingNotes();
-            } else if(currBufferIncludesNextLoop) {
-                // increment the loopCount if beyond the length of the last loop
-                incrementLoop();
             }
+
+            uiPosition = quantizedBeatPosition();
         }
 
         framesCounted += frameCount;
@@ -395,7 +456,7 @@ AURenderObserver SequencerEngineUpdateSequence(SequencerEngineRef engine,
 }
 
 double akSequencerEngineGetPosition(SequencerEngineRef engine) {
-    return engine->position();
+    return engine->quantizedPosition();
 }
 
 int akSequencerEngineGetCurrentLoop(SequencerEngineRef engine) {
